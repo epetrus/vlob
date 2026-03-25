@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversion Funnel Calculator — ROAS Model</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0e0f11;
+    --surface:  #16181c;
+    --surface2: #1d2025;
+    --border:   #2a2d33;
+    --border2:  #363a42;
+    --text:     #e8eaf0;
+    --muted:    #7a8099;
+    --accent:   #6c63ff;
+    --accent2:  #9d97ff;
+    --green:    #3dd68c;
+    --red:      #ff5c5c;
+    --amber:    #f5a623;
+    --mono:     'DM Mono', monospace;
+    --sans:     'Sora', sans-serif;
+  }
+
+  html { font-size: 16px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 400;
+    min-height: 100vh;
+    padding: 48px 24px 80px;
+  }
+
+  /* ── Page header ── */
+  .page-header {
+    max-width: 860px;
+    margin: 0 auto 48px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 28px;
+  }
+  .page-header .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    color: var(--accent2);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .page-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -.02em;
+    line-height: 1.2;
+    color: var(--text);
+  }
+  .page-header p {
+    margin-top: 8px;
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+    max-width: 560px;
+  }
+
+  /* ── Layout ── */
+  .layout {
+    max-width: 860px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .card.full { grid-column: 1 / -1; }
+  .card-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Sliders ── */
+  .sliders-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px 28px;
+  }
+  .slider-row { display: flex; flex-direction: column; gap: 6px; }
+  .slider-header { display: flex; justify-content: space-between; align-items: baseline; }
+  .slider-name { font-size: 12px; color: var(--muted); font-weight: 400; }
+  .slider-val {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--accent);
+    transition: transform .15s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.2); }
+  input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+  }
+
+  /* ── KPI cards ── */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .kpi {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--kpi-accent, var(--border));
+    transition: background .3s;
+  }
+  .kpi-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-family: var(--mono); letter-spacing: .04em; }
+  .kpi-val {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--kpi-color, var(--text));
+    transition: color .3s;
+    line-height: 1;
+  }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .kpi.profit-pos  { --kpi-color: var(--green); --kpi-accent: var(--green); }
+  .kpi.profit-zero { --kpi-color: var(--amber); --kpi-accent: var(--amber); }
+  .kpi.profit-neg  { --kpi-color: var(--red);   --kpi-accent: var(--red);   }
+
+  .kpi.roas-great  { --kpi-color: var(--green); --kpi-accent: var(--green); }
+  .kpi.roas-ok     { --kpi-color: var(--accent2); --kpi-accent: var(--accent); }
+  .kpi.roas-even   { --kpi-color: var(--amber); --kpi-accent: var(--amber); }
+  .kpi.roas-bad    { --kpi-color: var(--red);   --kpi-accent: var(--red);   }
+
+  /* ── Funnel bars ── */
+  .funnel { display: flex; flex-direction: column; gap: 10px; }
+  .f-row { display: grid; grid-template-columns: 120px 1fr 80px; align-items: center; gap: 12px; }
+  .f-label { font-size: 12px; color: var(--muted); text-align: right; font-family: var(--mono); }
+  .f-track {
+    height: 24px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border);
+  }
+  .f-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .4s cubic-bezier(.4,0,.2,1);
+    position: relative;
+  }
+  .f-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: left;
+  }
+
+  .f-bar-imp  { background: linear-gradient(90deg, #6c63ff44, #6c63ff88); border-right: 1px solid #6c63ff; }
+  .f-bar-ctr  { background: linear-gradient(90deg, #6c63ff66, #9d97ffaa); border-right: 1px solid #9d97ff; }
+  .f-bar-cvr  { background: linear-gradient(90deg, #9d97ff66, #c4c0ffaa); border-right: 1px solid #c4c0ff; }
+  .f-bar-app  { background: linear-gradient(90deg, #3dd68c44, #3dd68caa); border-right: 1px solid #3dd68c; }
+
+  /* ── Formula strip ── */
+  .formula {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    line-height: 1.8;
+    grid-column: 1 / -1;
+  }
+  .formula span { color: var(--accent2); }
+
+  /* ── Footer ── */
+  .page-footer {
+    max-width: 860px;
+    margin: 40px auto 0;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <div class="eyebrow">Direct Response · Paid Social · ROAS Model</div>
+  <h1>Conversion Funnel Calculator</h1>
+  <p>A click-to-purchase funnel model for Meta Ads campaigns driving traffic to a standalone product page. Adjust sliders to model budget scenarios and identify the highest-leverage gate.</p>
+</header>
+
+<main class="layout">
+
+  <!-- INPUTS -->
+  <div class="card full">
+    <div class="card-label">Inputs — sliders</div>
+    <div class="sliders-grid">
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">Daily budget</span>
+          <span class="slider-val" id="v-budget">$30.00</span>
+        </div>
+        <input type="range" id="s-budget" min="10" max="300" step="1" value="30" oninput="update()">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">CPM — cost per 1,000 impressions</span>
+          <span class="slider-val" id="v-cpm">$7.00</span>
+        </div>
+        <input type="range" id="s-cpm" min="2" max="20" step="0.1" value="7" oninput="update()">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">CTR — ad click-through rate</span>
+          <span class="slider-val" id="v-ctr">1.0%</span>
+        </div>
+        <input type="range" id="s-ctr" min="0.1" max="3" step="0.05" value="1" oninput="update()">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">CVR — landing page conversion</span>
+          <span class="slider-val" id="v-cvr">10.0%</span>
+        </div>
+        <input type="range" id="s-cvr" min="2" max="20" step="0.5" value="10" oninput="update()">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">Approval — payment completion</span>
+          <span class="slider-val" id="v-app">70%</span>
+        </div>
+        <input type="range" id="s-app" min="50" max="100" step="1" value="70" oninput="update()">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">Price — per unit sold</span>
+          <span class="slider-val" id="v-price">$10.00</span>
+        </div>
+        <input type="range" id="s-price" min="5" max="300" step="1" value="10" oninput="update()">
+      </div>
+
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="card full">
+    <div class="card-label">Results</div>
+    <div class="kpis">
+      <div class="kpi" id="kpi-revenue">
+        <div class="kpi-label">Revenue</div>
+        <div class="kpi-val" id="k-revenue">—</div>
+        <div class="kpi-sub" id="k-revenue-sub">daily</div>
+      </div>
+      <div class="kpi" id="kpi-profit">
+        <div class="kpi-label">Profit</div>
+        <div class="kpi-val" id="k-profit">—</div>
+        <div class="kpi-sub">revenue − ad spend</div>
+      </div>
+      <div class="kpi" id="kpi-cps">
+        <div class="kpi-label">Cost per sale</div>
+        <div class="kpi-val" id="k-cps">—</div>
+        <div class="kpi-sub">ad spend ÷ orders</div>
+      </div>
+      <div class="kpi" id="kpi-roas">
+        <div class="kpi-label">ROAS</div>
+        <div class="kpi-val" id="k-roas">—</div>
+        <div class="kpi-sub" id="k-roas-sub">100% = break-even</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FUNNEL -->
+  <div class="card full">
+    <div class="card-label">Funnel drop-off — daily</div>
+    <div class="funnel">
+      <div class="f-row">
+        <span class="f-label">Impressions</span>
+        <div class="f-track"><div class="f-bar f-bar-imp" id="b-imp" style="width:100%"></div></div>
+        <span class="f-count" id="c-imp">—</span>
+      </div>
+      <div class="f-row">
+        <span class="f-label">Clicks (CTR)</span>
+        <div class="f-track"><div class="f-bar f-bar-ctr" id="b-ctr"></div></div>
+        <span class="f-count" id="c-ctr">—</span>
+      </div>
+      <div class="f-row">
+        <span class="f-label">Page sessions (CVR)</span>
+        <div class="f-track"><div class="f-bar f-bar-cvr" id="b-cvr"></div></div>
+        <span class="f-count" id="c-cvr">—</span>
+      </div>
+      <div class="f-row">
+        <span class="f-label">Orders paid</span>
+        <div class="f-track"><div class="f-bar f-bar-app" id="b-app"></div></div>
+        <span class="f-count" id="c-app">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORMULA -->
+  <div class="formula">
+    <span>Impressions</span> = Budget ÷ CPM × 1,000 &nbsp;·&nbsp;
+    <span>Clicks</span> = Impressions × CTR &nbsp;·&nbsp;
+    <span>Sessions</span> = Clicks × CVR &nbsp;·&nbsp;
+    <span>Orders</span> = Sessions × Approval &nbsp;·&nbsp;
+    <span>Revenue</span> = Orders × Price &nbsp;·&nbsp;
+    <span>ROAS</span> = Revenue ÷ Budget × 100
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <span>Conversion Funnel Calculator · Direct Response ROAS Model</span>
+  <span id="footer-calc">—</span>
+</footer>
+
+<script>
+  function d2(n) { return n.toFixed(2); }
+  function d1(n) { return n.toFixed(1); }
+  function d0(n) { return Math.round(n).toLocaleString(); }
+  function usd(n) { return '$' + d2(n); }
+  function pct(n, dec) { return d1(n) + '%'; }
+
+  function update() {
+    const budget = +document.getElementById('s-budget').value;
+    const cpm    = +document.getElementById('s-cpm').value;
+    const ctr    = +document.getElementById('s-ctr').value / 100;
+    const cvr    = +document.getElementById('s-cvr').value / 100;
+    const app    = +document.getElementById('s-app').value / 100;
+    const price  = +document.getElementById('s-price').value;
+
+    // Display slider values
+    document.getElementById('v-budget').textContent = usd(budget);
+    document.getElementById('v-cpm').textContent    = usd(cpm);
+    document.getElementById('v-ctr').textContent    = d1(ctr * 100) + '%';
+    document.getElementById('v-cvr').textContent    = d1(cvr * 100) + '%';
+    document.getElementById('v-app').textContent    = Math.round(app * 100) + '%';
+    document.getElementById('v-price').textContent  = usd(price);
+
+    // Funnel math
+    const impressions = (budget / cpm) * 1000;
+    const clicks      = impressions * ctr;
+    const sessions    = clicks * cvr;
+    const orders      = sessions * app;
+    const revenue     = orders * price;
+    const profit      = revenue - budget;
+    const roas        = revenue / budget * 100;
+    const cps         = orders > 0 ? budget / orders : 0;
+
+    // KPI: Revenue
+    document.getElementById('k-revenue').textContent     = usd(revenue);
+    document.getElementById('k-revenue-sub').textContent = d1(orders) + ' orders · ' + usd(price) + ' each';
+
+    // KPI: Profit
+    const profitEl = document.getElementById('kpi-profit');
+    document.getElementById('k-profit').textContent = (profit >= 0 ? '+' : '') + usd(profit);
+    profitEl.className = 'kpi ' + (profit > 0.01 ? 'profit-pos' : profit < -0.01 ? 'profit-neg' : 'profit-zero');
+
+    // KPI: Cost per sale
+    document.getElementById('k-cps').textContent = orders > 0.01 ? usd(cps) : '—';
+
+    // KPI: ROAS
+    const roasEl = document.getElementById('kpi-roas');
+    document.getElementById('k-roas').textContent = d1(roas) + '%';
+    document.getElementById('k-roas-sub').textContent = roas >= 100
+      ? '+' + d1(roas - 100) + '% above break-even'
+      : d1(100 - roas) + '% below break-even';
+    roasEl.className = 'kpi ' + (roas >= 200 ? 'roas-great' : roas >= 120 ? 'roas-ok' : roas >= 95 ? 'roas-even' : 'roas-bad');
+
+    // Funnel bars (width relative to impressions = 100%)
+    function setBar(barId, countId, val, label) {
+      const pct = Math.min(100, Math.max(0.5, (val / impressions) * 100));
+      document.getElementById(barId).style.width = pct + '%';
+      document.getElementById(countId).textContent = label;
+    }
+    setBar('b-imp', 'c-imp', impressions, d0(impressions) + ' imp.');
+    setBar('b-ctr', 'c-ctr', clicks,      d1(clicks) + ' clicks');
+    setBar('b-cvr', 'c-cvr', sessions,    d1(sessions) + ' sessions');
+    setBar('b-app', 'c-app', orders,      d1(orders) + ' orders');
+
+    // Footer
+    document.getElementById('footer-calc').textContent =
+      'Budget ' + usd(budget) + ' · Revenue ' + usd(revenue) + ' · ROAS ' + d1(roas) + '%';
+  }
+
+  update();
+</script>
+
+</body>
+</html>
